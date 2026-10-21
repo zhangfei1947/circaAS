@@ -1,0 +1,49 @@
+{
+  "n_records": 332,
+  "status_counts": {
+    "model_unresolved": 103,
+    "coverage_insufficient": 78,
+    "not_detected": 132,
+    "rhythm_candidate": 19
+  },
+  "status_by_dataset": {
+    "neurospora": {
+      "model_unresolved": 52,
+      "coverage_insufficient": 38,
+      "not_detected": 53,
+      "rhythm_candidate": 4
+    },
+    "tempcompen": {
+      "model_unresolved": 51,
+      "not_detected": 79,
+      "coverage_insufficient": 40,
+      "rhythm_candidate": 15
+    }
+  },
+  "successful_p_values_checked": 151,
+  "input_sha256": "9fc2cdecf32e3979f5423c9c63f1649a760e41e553f28131b69ed757ba9d8529",
+  "manifest_sha256": "f47d5902e39bd7393cd8579547525a0c4b54806922c8d60d027543dfb23c132a",
+  "all_record_seed_and_artifact_checks": true,
+  "current_code_hashes_match": true,
+  "code_files_different_from_recorded_version": [],
+  "scope": "Historical development validation; raw inputs, full panel and run artifacts retained locally and not distributed.",
+  "coverage": {
+    "neurospora": {
+      "total": 5804,
+      "sufficient": 4837,
+      "insufficient": 967
+    },
+    "tempcompen": {
+      "total": 106116,
+      "sufficient": 90784,
+      "insufficient": 15332
+    }
+  },
+  "unit_tests_passed": 22,
+  "audit_sources_sha256": {
+    "final_run_audit.json": "25fd4b01e7398f02ac66415e4eedb92a01e5186b71b8e915df77c34f594071de",
+    "full_coverage_parity.json": "419dc56877580e02a8938e8ab3417298165f205686a32fd41318666d5e489824",
+    "repro_v1_audit.json": "0d3a598b6f6ae99e1dfe651155d75fa59ece50343038394508bb82b77ecca48c",
+    "release_parity_audit.json": "904d31e033debfc8baba2829d4f0fa04d87695116a42ab08afa7f89d6bbe35ed"
+  }
+}

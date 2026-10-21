@@ -1,0 +1,26 @@
+{
+  "algorithm": "V3 pilot99 bias-corrected null BB bootstrap with original V2 LRT",
+  "files": [
+    {
+      "filename": "bb_model.py",
+      "source_path": "circadian_as_coverage_v2_20261019/scripts/bb_model.py",
+      "source_sha256": "eec8d9423bb9b30c53646f4467cfd41855d25f03ef6776b124a2a7e4db9d41a3",
+      "vendored_sha256": "eec8d9423bb9b30c53646f4467cfd41855d25f03ef6776b124a2a7e4db9d41a3",
+      "adaptation": "none; byte-identical"
+    },
+    {
+      "filename": "small_sample.py",
+      "source_path": "circadian_as_optimization_v3_20261019/scripts/small_sample.py",
+      "source_sha256": "c9c101ac5b0e09582cf480eb6ca04ee02d2630983818d9245dd23197472bd99d",
+      "vendored_sha256": "c9c101ac5b0e09582cf480eb6ca04ee02d2630983818d9245dd23197472bd99d",
+      "adaptation": "none; byte-identical"
+    },
+    {
+      "filename": "bb_bias_corrected.py",
+      "source_path": "circadian_as_optimization_v3_20261019/scripts/bb_bias_corrected.py",
+      "source_sha256": "6b654b3fe54b61b59a99b31a53cd514a8998a6630fc17ce63ea4ead743df431b",
+      "vendored_sha256": "66e62c6355d91aaf127d931267dc88b22b2d4cefc8398ba017b8aafb941756e1",
+      "adaptation": "relative imports only"
+    }
+  ]
+}

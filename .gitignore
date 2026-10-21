@@ -1,0 +1,14 @@
+__pycache__/
+*.egg-info/
+build/
+dist/
+.venv/
+.DS_Store
+release-dist/
+demo.jsonl
+demo-run/
+validation/*
+!validation/*.py
+!validation/VALIDATION.md
+!validation/RESULTS.md
+!validation/published_summary.json
