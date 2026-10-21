@@ -1,14 +1,14 @@
 # circaAS 0.1.0
 
-GitHub 项目名为 **circaAS**；Python 包及命令行名称保持 **circadian-as**。
+**circaAS** is the GitHub project name; the Python distribution and command-line tool are named **circadian-as**.
 
-第一版是可安装的 Python 核心包与命令行工具。BB 偏差修正为主引擎，连续 BLN 保留统一接口但尚未实现。当前版本用于探索性筛选，不承诺全基因组 FDR 控制。
+This initial release provides an installable Python package and CLI for exploratory circadian alternative-splicing analysis. The primary engine uses a beta-binomial (BB) model with bias-corrected null bootstrap calibration. An interface for continuous binomial–logit-normal (BLN) sensitivity analysis is reserved but not yet implemented. This release does not provide certified genome-wide false discovery rate (FDR) control.
 
-先稳定计数输入、模型数值、结果语义和输出协议，再以同一核心封装 R 接口；现在直接移植成 R 会额外引入优化器与随机数差异。核心代码已按输入、覆盖诊断、引擎、运行与追溯分层，不是一次性分析脚本。
+The code is organized into input validation, coverage diagnostics, model engines, execution, and provenance modules. A future R interface can reuse the same core after the input/output schema stabilizes. Retaining the current numerical implementation avoids introducing optimizer and random-number differences during an immediate migration to R.
 
-## 安装与运行
+## Installation and quick start
 
-需要 Python 3.10+、NumPy、SciPy。可选图形依赖 matplotlib。
+Requires Python 3.10+, NumPy, and SciPy. Plotting additionally requires matplotlib.
 
 ```bash
 git clone https://github.com/zhangfei1947/circaAS.git
@@ -20,17 +20,16 @@ circadian-as --version
 circadian-as engines
 ```
 
-不需要原始研究数据的最小示例（完全合成的演示计数，不用于性能评测）：
+Run a minimal example without the original research data. These entirely synthetic counts demonstrate software behavior and are not a performance benchmark:
 
 ```bash
 python examples/make_demo.py --out demo.jsonl
 circadian-as run --input demo.jsonl --out demo-run --bootstrap 199 --workers 2
 ```
 
-分析自己的 rMATS 原始计数：
+Analyze your own raw rMATS counts:
 
 ```bash
-
 circadian-as prepare-rmats \
   --counts-dir /path/to/rmats/output \
   --samples /path/to/samples.tsv \
@@ -42,51 +41,55 @@ circadian-as coverage --input prepared/records.jsonl --out coverage-run
 circadian-as run --input prepared/records.jsonl \
   --out analysis-run --bootstrap 199 --workers 4 --seed 20261020
 
-# event 路径由 results.tsv 的 artifact 列给出。
+# Use the event JSON path listed in the artifact column of results.tsv.
 python -m pip install '.[plot]'
 circadian-as plot --event analysis-run/events/EVENT_HASH.json --out event.png
 ```
 
-samples.tsv 的字段与 BAM 对齐要求见[输入规范](docs/input-format.md)。所有输出目录必须尚不存在，避免覆盖既有结果。CLI 每个计算进程设置一个 BLAS 线程；`--workers` 控制事件并行度。
+See the [input specification](docs/input-format.md) for `samples.tsv` fields and BAM-order mapping requirements. Output directories must not already exist, to prevent overwriting previous results. The CLI sets one BLAS thread per process; `--workers` controls parallel execution across events.
 
-## 模型与覆盖
+## Model and coverage
 
-每个条件独立分析，使用原始 inclusion/skipping counts 与有效长度；不是对观测 PSI 直接作等权回归。固定周期为 24 小时，logit PSI 包含实验固定截距和 sin/cos 项；观测计数概率加上 `log(LI/LS)` offset。BB 分布处理抽样误差与过离散，零 reads 样本不贡献似然，不插补 PSI。
+Each biological condition is analyzed separately using raw inclusion/skipping counts and effective lengths. The model uses a fixed 24-hour period, experiment-specific fixed intercepts, and sine/cosine terms on the logit PSI scale. The observed inclusion-count probability includes a `log(LI/LS)` offset. The BB distribution accounts for sampling variation and overdispersion. Zero-depth observations contribute no likelihood information, and their PSI values are not imputed.
 
-主检验沿用 V2 likelihood-ratio statistic；99 次 pilot 估计 null 离散度偏差，再用修正后的 null 进行参数 bootstrap。默认最终 199 次，失败模拟保守计入上尾，pilot/最终失败比例超过既定阈值则不发布主 p 值。数值代码只改相对 import，附原始 SHA256 和新旧同种子回归测试。
+The primary test retains the V2 likelihood-ratio statistic. A pilot of 99 null simulations estimates bias in the null dispersion, followed by a parametric bootstrap from the corrected null. The default final bootstrap budget is 199. Failed simulations are conservatively counted in the upper tail; no primary p-value is reported when the pilot or final failure rate exceeds the predefined threshold. The historical numerical implementation was retained with only relative-import changes, accompanied by source SHA256 hashes and same-seed regression tests.
 
-TempCompen r1/r2 按贯穿时间序列的两次实验处理。该版本不估计时间自相关，不搜索周期，不做菌株/温度差异节律检验，也不联合拟合 gene expression。条件化于实际事件深度 N 能反映 reads 少导致的信息减少，但不能恢复缺失相位，也不解决 PSI 依赖的非随机缺失。
+In the TempCompen development dataset, r1/r2 identify two experiments spanning the time series. This version does not estimate temporal autocorrelation, search over periods, test differential rhythmicity between strains or temperatures, or jointly model gene expression. Conditioning on the observed event depth N reflects the loss of information at low read counts, but cannot recover missing phases or resolve PSI-dependent nonrandom missingness.
 
-覆盖门槛逐字保留 V2 实现，仅使用 N、时间和实验标签。另报告各绝对时间/相位深度、跨周期重复零覆盖相位、有效样本量、相位间隙和设计条件数。这些附加诊断不改变过滤条件。
+Coverage eligibility preserves the V2 implementation byte for byte and uses only N, time, and experiment labels. Additional diagnostics describe depth by absolute time and phase, phases with repeated zero coverage across cycles, effective sample size, phase gaps, and the harmonic design condition number. These additional diagnostics do not change the filtering rules.
 
-## 四类结果
+## Four outcome states
 
-| status | 含义 |
+| Status | Meaning |
 |---|---|
-| `rhythm_candidate` | 覆盖合格且检验数值可靠，原始 p ≤ alpha；探索性候选 |
-| `not_detected` | 覆盖合格且检验可靠，未达到阈值；不能推断不振荡 |
-| `coverage_insufficient` | 原覆盖规则不通过；p 缺失 |
-| `model_unresolved` | 覆盖合格但拟合/重采样不能可靠完成；p 缺失 |
+| `rhythm_candidate` | Coverage passes and the test is numerically reliable, with raw p ≤ alpha; an exploratory candidate. |
+| `not_detected` | Coverage passes and the test is reliable, but the threshold is not reached; this does not establish absence of rhythm. |
+| `coverage_insufficient` | The original coverage rules are not satisfied; the primary p-value is missing. |
+| `model_unresolved` | Coverage passes, but fitting or resampling cannot produce a reliable test; the primary p-value is missing. |
 
-单一 splice support 等不可识别情形也属于 model_unresolved。覆盖足够不等于同时具备可靠的剪接比例推断条件。不提供“确定不振荡”标签。
+Unidentifiable cases, including support for only one splice form, also receive `model_unresolved`. Adequate total coverage does not guarantee that changes in splicing proportions can be estimated reliably. The software does not assign a “confirmed nonrhythmic” label.
 
-199 次最终 bootstrap 的 p 分辨率为 0.005；提高次数减少 Monte Carlo 误差，不修复模型错设。事件 JSON 中的 Monte Carlo 区间仅描述条件于拟合 null 的最终模拟尾概率，排除 pilot、参数和模型不确定性，不能解释为完整节律 p 的置信区间。阈值附近事件标注 `threshold_ambiguous`，不自动改动分类。
+With 199 final bootstrap draws, p-value resolution is 0.005. Increasing the budget reduces Monte Carlo error but does not repair model misspecification. The Monte Carlo interval in each event JSON describes only final-simulation tail probability conditional on the fitted null. It excludes pilot, parameter, and model uncertainty and is not a confidence interval for the complete rhythmicity test. Events near the threshold are flagged with `threshold_ambiguous`; this diagnostic does not automatically change their classification.
 
-## 可追溯输出
+## Traceable outputs
 
-- `results.tsv`：每个输入事件一行，四类状态、原因、可用 p、效应量、相位与事件 JSON 路径。
-- `coverage.tsv`：冻结覆盖规则的逐事件指标与失败原因。
-- `events/*.json`：输入计数、时间、实验、有效长度、原注释、额外覆盖诊断、拟合、bootstrap、Monte Carlo 诊断和按实验预测曲线。
-- `manifest.json`：输入及伴随来源 SHA256、参数、软件/依赖版本、代码与全部输出散列、状态计数及运行完成标记。
+- `results.tsv`: one row per input event, with status, reason, available p-value, effect size, phase, and event JSON path.
+- `coverage.tsv`: per-event metrics and failure reasons from the frozen coverage rules.
+- `events/*.json`: input counts, times, experiments, effective lengths, original annotations, additional coverage diagnostics, fits, bootstrap records, Monte Carlo diagnostics, and predicted curves by experiment.
+- `manifest.json`: SHA256 hashes of inputs and accompanying provenance files, parameters, software/dependency versions, code and output hashes, status counts, and run completion state.
 
-事件随机种子由 root seed 与无歧义 record_key 的 SHA256 生成，独立于事件输入次序和进程数量。输入错误直接拒绝运行；意外中断标记整个 run 为 failed，不伪装为完成。数值失败诊断中的历史 p=1 哨兵仅保留在内部对象，主输出不采用它。
+Event seeds are derived from the root seed and an unambiguous `record_key` using SHA256, independently of event input order and process count. Invalid inputs are rejected before execution. An unexpected interruption marks the run as failed rather than complete. Historical p=1 sentinel values from numerical failures are retained only in internal diagnostic objects and are never used as primary results.
 
-## 验证与下一步
+## Validation and next steps
 
-参见 [验证说明](validation/VALIDATION.md)、[输入规范](docs/input-format.md)、[引擎接口](docs/engine.md) 与 [本次运行结果](validation/RESULTS.md)。两套数据都是开发集，无认可真阳性；全量导入/覆盖扫描与固定面板拟合分开报告。
+See the [validation notes](validation/VALIDATION.md), [input specification](docs/input-format.md), [engine interface](docs/engine.md), and [development results](validation/RESULTS.md). The validation notes and development results are currently in Chinese. Both datasets are development datasets without established rhythmic-AS positive controls. Full input/coverage scans and model fitting on the fixed panel are reported separately.
 
-后续可先提供 R 的 `system2()` 包装与结果读入/绘图，让 R 和 CLI 共用相同引擎和 schema。连续 BLN 应在不改变 BB 主结果的条件下返回独立敏感性结果，并经过自己的校准验证；当前 `--engine bln_continuous` 会明确报未实现。
+A future R interface could initially use `system2()` with result-import and plotting functions, allowing R and the CLI to share the same engine and schema. Continuous BLN should provide independently calibrated sensitivity results without altering the primary BB results. Currently, `--engine bln_continuous` explicitly reports that the engine is not implemented.
 
-仓库包含源码、测试、模拟回归 fixture、验证脚本和汇总。原始 rMATS/BAM 数据、完整 332 项面板、逐事件分析输出和本地审计文件不随公开仓库分发；验证文档中这些路径描述的是原开发环境。汇总见 [published_summary.json](validation/published_summary.json)。
+The repository includes source code, tests, simulated regression fixtures, validation scripts, and summaries. Original rMATS/BAM data, the complete 332-event panel, per-event analysis outputs, and local audit files are not distributed in this public repository. References to those paths in the validation documents describe the original development environment. A machine-readable summary is available in [published_summary.json](validation/published_summary.json).
 
-开发测试：`python -m unittest discover -s tests -v`。
+Run the development tests with:
+
+```bash
+python -m unittest discover -s tests -v
+```
